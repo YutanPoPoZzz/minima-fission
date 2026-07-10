@@ -13,9 +13,16 @@
 //   galaxy sun         -> the central NUCLEUS: a breathing cluster of glowing
 //                         orbs = play/stop; its shockwave is the kick
 //                         sidechain. It burns yellow-white as CRITICAL rises.
-//   galaxy black hole  -> CRITICAL: a control rod, top-left. Drag up/down to
-//                         pull it out; geiger ticks and neutron streaks
-//                         multiply as criticality rises.
+//   galaxy black hole  -> CRITICAL: a tearing gauge, top-left — a small
+//                         nucleus cluster pulled apart into two fragment
+//                         halves as you drag, yellow neutron sparks and
+//                         necking threads arcing across the widening gap.
+//                         Geiger ticks and neutron streaks multiply too.
+//
+// Breakbeat breakage: every audible hit (step message + toggles) also feeds
+// envelope-driven damage — the nucleus deforms like a liquid drop and truly
+// fissions at high CRITICAL, the scene jolts on snares/ghosts, and past 0.5
+// the picture itself tears (glitch slices, cracked orbit, node shatter).
 //
 // Owns the AudioContext and messages the fission engine in the AudioWorklet.
 
@@ -140,6 +147,14 @@ let burstEl = null;
 let cometA = null;
 let cometB = null;
 const geigerTicks = [];
+let orbitRingEl = null; // cracks and flickers at high criticality
+let sceneRoot = null; // everything but defs; jolted as one, cloned by glitch
+let lobeAEl = null; // left fragment group of the nucleus cluster
+let lobeBEl = null; // right fragment group
+let nucNeckEl = null; // yellow necking threads between the separating lobes
+let nucSparksG = null; // neutron sparks thrown when the drop really fissions
+let nucFlashEl = null; // the fission flash
+const glitchSlices = []; // {use, rect} — clipped scene clones for glitch tears
 
 function el(tag, attrs = {}) {
   const node = document.createElementNS(NS, tag);
@@ -278,8 +293,9 @@ function buildRing() {
   decorB.appendChild(el('ellipse', { cx: CX, cy: CY, rx: 92, ry: 26, fill: 'none', stroke: 'rgba(232,244,238,0.16)', 'stroke-width': 0.6, transform: `rotate(28 ${CX} ${CY})` }));
   space.appendChild(decorB);
 
-  // the sequencer ring itself
-  space.appendChild(el('ellipse', { class: 'orbit-ring', cx: CX, cy: CY, rx: RING_R, ry: RING_R * TILT, fill: 'none', stroke: 'rgba(232,244,238,0.32)', 'stroke-width': 0.7 }));
+  // the sequencer ring itself (kept: it cracks past CRITICAL 0.5)
+  orbitRingEl = el('ellipse', { class: 'orbit-ring', cx: CX, cy: CY, rx: RING_R, ry: RING_R * TILT, fill: 'none', stroke: 'rgba(232,244,238,0.32)', 'stroke-width': 0.7 });
+  space.appendChild(orbitRingEl);
 
   // 16 step nodes strung on the ring
   for (let i = 0; i < STEPS; i++) {
@@ -438,21 +454,59 @@ function buildScene() {
   sun.appendChild(burstEl);
 
   // the nucleon cluster: ~7 hollow orbs of light packed around the centre,
-  // green and yellow mixed in among the white
+  // green and yellow mixed in among the white. Split into two LOBES so the
+  // liquid-drop deformation can pull it apart: hits stretch the drop into
+  // two lobes (sphere -> ellipsoid -> necking -> back), and at high
+  // criticality the lobes genuinely fly apart, then re-collect. Only this
+  // inner drawing group animates — the hit-area/play-control circles below
+  // stay perfectly still so the tap target never moves.
   nucleusScaleEl = el('g', { class: 'nucleus-cluster' });
-  const NUCLEONS = [
+  // necking: yellow threads of light stretched between the separating lobes
+  nucNeckEl = el('g', { opacity: 0 });
+  for (const [x1, y1, x2, y2] of [[-3.5, -1.2, 3.5, 0.8], [-3, 1.6, 3, -1.4], [-2.5, 3, 2.8, 2.4]]) {
+    nucNeckEl.appendChild(el('line', { x1: CX + x1, y1: CY + y1, x2: CX + x2, y2: CY + y2, stroke: 'var(--accent2)', 'stroke-width': 0.7, 'stroke-linecap': 'round', filter: 'url(#glow)' }));
+  }
+  nucleusScaleEl.appendChild(nucNeckEl);
+  const LOBE_A = [ // left fragment
     [0, -10.5, 4.2, '#ffffff'],
-    [9.5, -4.5, 4.6, 'var(--accent)'],
-    [10, 5.5, 3.8, '#ffffff'],
-    [1.5, 11, 4.4, 'var(--accent2)'],
     [-9, 7, 4.2, '#ffffff'],
     [-11, -3.5, 3.6, 'var(--accent)'],
     [-3.5, -4, 2.6, '#ffffff'],
   ];
-  for (const [dx, dy, r, stroke] of NUCLEONS) {
-    nucleusScaleEl.appendChild(el('circle', { cx: CX + dx, cy: CY + dy, r, fill: 'none', stroke, 'stroke-width': 1.1, opacity: 0.85, filter: 'url(#glow)' }));
+  const LOBE_B = [ // right fragment
+    [9.5, -4.5, 4.6, 'var(--accent)'],
+    [10, 5.5, 3.8, '#ffffff'],
+    [1.5, 11, 4.4, 'var(--accent2)'],
+  ];
+  lobeAEl = el('g');
+  lobeBEl = el('g');
+  for (const [lobe, orbs] of [[lobeAEl, LOBE_A], [lobeBEl, LOBE_B]]) {
+    for (const [dx, dy, r, stroke] of orbs) {
+      lobe.appendChild(el('circle', { cx: CX + dx, cy: CY + dy, r, fill: 'none', stroke, 'stroke-width': 1.1, opacity: 0.85, filter: 'url(#glow)' }));
+    }
+    nucleusScaleEl.appendChild(lobe);
   }
   sun.appendChild(nucleusScaleEl);
+
+  // the real-fission rig: yellow flash + neutron sparks, replayed per split
+  nucFlashEl = el('circle', { class: 'nuc-flash', cx: CX, cy: CY, r: 24, fill: 'url(#burn)' });
+  sun.appendChild(nucFlashEl);
+  nucSparksG = el('g', { class: 'nuc-sparks', transform: `translate(${CX} ${CY})` });
+  for (const a of [25, 105, 205, 300]) {
+    const rad = (a * Math.PI) / 180;
+    nucSparksG.appendChild(el('line', {
+      class: 'nray',
+      x1: (Math.cos(rad) * 7).toFixed(2),
+      y1: (Math.sin(rad) * 7).toFixed(2),
+      x2: (Math.cos(rad) * 16).toFixed(2),
+      y2: (Math.sin(rad) * 16).toFixed(2),
+      stroke: 'var(--accent2)',
+      'stroke-width': 1.1,
+      'stroke-linecap': 'round',
+      filter: 'url(#glow)',
+    }));
+  }
+  sun.appendChild(nucSparksG);
 
   // refined play control: faint outer corona, loading arc, stroked glyph
   sun.appendChild(el('circle', { cx: CX, cy: CY, r: 20.5, stroke: 'rgba(232,244,238,0.3)', 'stroke-width': 0.7, fill: 'none' }));
@@ -464,7 +518,33 @@ function buildScene() {
   sun.addEventListener('pointerdown', togglePlay);
   space.appendChild(sun);
 
+  // wrap everything except defs in one scene-root group so the whole picture
+  // can jolt as one, and glitch slices can re-project bands of it
+  sceneRoot = el('g', { id: 'scene-root' });
+  const kids = Array.from(space.children).filter((n) => n.tagName !== 'defs');
+  space.appendChild(sceneRoot);
+  for (const k of kids) sceneRoot.appendChild(k);
+  buildGlitchRig();
+
   refreshOverview();
+}
+
+// two <use> clones of the scene, clipped to thin horizontal bands. Shown for
+// a flash and offset sideways, they read as the image tearing — pure
+// transform/opacity, display:none whenever idle so they cost nothing.
+function buildGlitchRig() {
+  const defs = space.querySelector('defs');
+  for (let i = 0; i < 2; i++) {
+    const clip = el('clipPath', { id: `glitch-clip-${i}` });
+    const rect = el('rect', { x: 0, y: 60 + i * 90, width: 320, height: 10 });
+    clip.appendChild(rect);
+    defs.appendChild(clip);
+    const use = el('use', { class: 'glitch-slice', 'clip-path': `url(#glitch-clip-${i})` });
+    use.setAttribute('href', '#scene-root');
+    use.addEventListener('animationend', () => use.classList.remove('go'));
+    space.appendChild(use);
+    glitchSlices.push({ use, rect });
+  }
 }
 
 function playPath() {
@@ -476,34 +556,54 @@ function stopPath() {
   return `M${CX - 3} ${CY - 5} L${CX - 3} ${CY + 5} M${CX + 3} ${CY - 5} L${CX + 3} ${CY + 5}`;
 }
 
-// ---- CRITICAL: the control rod, top-left — drag up/down to pull it out ----
+// ---- CRITICAL: the tearing gauge, top-left — a tiny nucleus cluster that
+// is pulled apart into two fragment halves as you drag up (same vertical
+// gesture as before). Yellow necking threads and neutron sparks bridge the
+// widening gap: at 0% the halves are fused into one atom, at 100% the atom
+// is visibly ripped in two. ----
 
-let rodEl = null;
-let rodLines = null;
+let critGroup = null;
+let critHalfA = null;
+let critHalfB = null;
+let critNeck = null;
+let critOrbs = [];
 let criticalValue = null;
 const criticalSlider = document.getElementById('critical-slider');
 
 function buildCritical() {
   const g = el('g', { class: 'critical', transform: 'translate(36 26)' });
-  const hit = el('rect', { x: -16, y: -20, width: 32, height: 62, fill: 'transparent' });
+  critGroup = g;
+  const hit = el('rect', { x: -18, y: -20, width: 36, height: 62, fill: 'transparent' });
   g.appendChild(hit);
 
-  const throb = el('g', { class: 'rod-throb' });
-  // the rod housing: top mount bracket + two vertical guide rails
-  throb.appendChild(el('line', { x1: -9, y1: -13, x2: 9, y2: -13, stroke: 'var(--light)', 'stroke-width': 1.2, 'stroke-linecap': 'round', opacity: 0.7 }));
-  throb.appendChild(el('line', { x1: -5.5, y1: -13, x2: -5.5, y2: 17, stroke: 'var(--light)', 'stroke-width': 0.7, opacity: 0.35 }));
-  throb.appendChild(el('line', { x1: 5.5, y1: -13, x2: 5.5, y2: 17, stroke: 'var(--light)', 'stroke-width': 0.7, opacity: 0.35 }));
+  const throb = el('g', { class: 'crit-throb' });
 
-  // the rod itself: a vertical bar of light with a grip head; it slides UP as
-  // CRITICAL rises (the rod withdrawing from the core)
-  rodEl = el('g', { class: 'rod' });
-  rodEl.style.transition = 'transform 80ms linear';
-  rodLines = [
-    el('line', { x1: 0, y1: -8, x2: 0, y2: 16, stroke: 'var(--light)', 'stroke-width': 3, 'stroke-linecap': 'round', filter: 'url(#glow)' }),
-    el('line', { x1: -3.5, y1: -10.5, x2: 3.5, y2: -10.5, stroke: 'var(--light)', 'stroke-width': 2, 'stroke-linecap': 'round', filter: 'url(#glow)' }),
-  ];
-  for (const line of rodLines) rodEl.appendChild(line);
-  throb.appendChild(rodEl);
+  // necking: yellow threads of light stretched between the separating halves
+  critNeck = el('g', { opacity: 0 });
+  for (const [x1, y1, x2, y2] of [[-2.5, -1.6, 2.5, 1], [-2.2, 1.8, 2.4, -0.6], [-1.8, 0.2, 2, 2.2]]) {
+    critNeck.appendChild(el('line', { x1, y1, x2, y2, stroke: 'var(--accent2)', 'stroke-width': 0.6, 'stroke-linecap': 'round', filter: 'url(#glow)' }));
+  }
+  // neutron sparks flickering in the tear (CSS-animated while > 0)
+  critNeck.appendChild(el('circle', { class: 'crit-spark', cx: -0.8, cy: -2.6, r: 0.8, fill: 'var(--accent2-bright)', filter: 'url(#glow)' }));
+  critNeck.appendChild(el('circle', { class: 'crit-spark b', cx: 1, cy: 2.8, r: 0.7, fill: 'var(--accent2-bright)', filter: 'url(#glow)' }));
+  throb.appendChild(critNeck);
+
+  // the two fragment half-clusters, fused into one small atom at rest
+  critOrbs = [];
+  critHalfA = el('g');
+  for (const [dx, dy, r] of [[-2.6, -2.8, 2.6], [-3.8, 2.2, 2.2], [0.4, 0.6, 3]]) {
+    const c = el('circle', { cx: dx, cy: dy, r, fill: 'none', stroke: 'var(--light)', 'stroke-width': 1, filter: 'url(#glow)' });
+    critOrbs.push(c);
+    critHalfA.appendChild(c);
+  }
+  critHalfB = el('g');
+  for (const [dx, dy, r] of [[2.8, -1.8, 2.4], [3.6, 3, 2.4], [-0.4, 4.6, 1.9]]) {
+    const c = el('circle', { cx: dx, cy: dy, r, fill: 'none', stroke: 'var(--light)', 'stroke-width': 1, filter: 'url(#glow)' });
+    critOrbs.push(c);
+    critHalfB.appendChild(c);
+  }
+  throb.appendChild(critHalfA);
+  throb.appendChild(critHalfB);
   g.appendChild(throb);
 
   const label = el('text', { y: 30, 'text-anchor': 'middle', class: 'planet-label' });
@@ -536,14 +636,21 @@ function setCritical(value) {
   critical = Math.min(1, Math.max(0, value));
   send({ type: 'critical', value: critical });
   criticalValue.textContent = `${Math.round(critical * 100)}%`;
-  // the rod withdraws upward as criticality rises
-  rodEl.style.transform = `translateY(${(-critical * 13).toFixed(1)}px)`;
-  // the reaction goes hot: rod + readout turn warning yellow, the nucleus
-  // burns yellow-white
+  // the atom is torn open: the two half-clusters pull apart as criticality
+  // rises, and the necking threads stretch across the gap
+  const sep = critical * 7.5;
+  critHalfA.setAttribute('transform', `translate(${(-sep).toFixed(2)} ${(-sep * 0.16).toFixed(2)})`);
+  critHalfB.setAttribute('transform', `translate(${sep.toFixed(2)} ${(sep * 0.16).toFixed(2)})`);
+  critNeck.setAttribute('transform', `scale(${(1 + sep / 2.4).toFixed(3)} 1)`);
+  critNeck.setAttribute('opacity', Math.min(0.95, critical * 2.4).toFixed(2));
+  critGroup.classList.toggle('hot', critical > 0.05); // spark flicker on/off
+  // the reaction goes hot: fragments + readout turn warning yellow, the
+  // nucleus burns yellow-white, the orbit ring cracks past 0.5
   const lit = critical > 0.001;
-  for (const line of rodLines) line.setAttribute('stroke', lit ? 'var(--accent2)' : 'var(--light)');
+  for (const c of critOrbs) c.setAttribute('stroke', lit ? 'var(--accent2)' : 'var(--light)');
   criticalValue.style.fill = lit ? 'var(--accent2-bright)' : 'var(--dim)';
   nucleusBurnEl.setAttribute('opacity', (0.85 * critical).toFixed(2));
+  orbitRingEl.classList.toggle('cracked', critical > 0.5);
   if (criticalSlider) criticalSlider.value = critical;
   // stray neutrons streak faster and harder
   cometA.style.animationDuration = `${(9 / (1 + critical * 1.8)).toFixed(2)}s`;
@@ -615,6 +722,7 @@ async function togglePlay() {
   } else {
     parkNeutron();
     clearEditorPlayhead();
+    pendingPulses.length = 0; // no echoes after the reaction stops
   }
   await ensureAudio();
   if (audioCtx.state === 'suspended') await audioCtx.resume();
@@ -691,6 +799,7 @@ function movePlayhead(index) {
   pulse('snare', toggles.snare[index] || toggles.ghost[index]);
   pulse('hat', toggles.hatC[index] || toggles.hatO[index]);
   pulse('bass', toggles.bass[index]);
+  sceneHit(index);
 
   for (const track of editorRows) {
     const cells = document.getElementById(`steps-${track}`).children;
@@ -722,22 +831,161 @@ function fireFission(p) {
   fissionG.classList.add('go');
 }
 
-// ---- ambient motion: breathing nucleus, wandering dust, geiger ticks ----
+// ---- breakbeat breakage: hit-synced jolts, splits, glitches, shatter ----
+// All driven from the step message + toggles; the envelopes decay inside the
+// one shared rAF loop (no extra timers).
+
+function replay(node, cls = 'go') {
+  node.classList.remove(cls);
+  void node.getBoundingClientRect(); // restart the CSS animation
+  node.classList.add(cls);
+}
+
+// the drop really fissions: the lobes fly apart, neutron sparks and a yellow
+// flash burst out, then the fragments re-collect as the envelope decays
+function nucleusSplit() {
+  lobeSepEnv = Math.max(lobeSepEnv, 4.5 + 6.5 * critical);
+  stretchEnv = Math.max(stretchEnv, 0.22);
+  nucSparksG.setAttribute('transform', `translate(${CX} ${CY}) rotate(${(Math.random() * 360) | 0})`);
+  replay(nucSparksG);
+  replay(nucFlashEl);
+}
+
+// a horizontal band of the picture tears sideways for a flash
+function fireGlitch() {
+  for (const { use, rect } of glitchSlices) {
+    rect.setAttribute('y', (16 + Math.random() * 210).toFixed(0));
+    rect.setAttribute('height', (5 + Math.random() * 13).toFixed(0));
+    use.style.transform = `translateX(${((Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 5)).toFixed(1)}px)`;
+    replay(use);
+  }
+}
+
+// a few lit step nodes flicker apart for an instant
+function shatterNodes() {
+  for (let n = 0; n < 3; n++) {
+    const i = Math.floor(Math.random() * STEPS);
+    if (nodeState(i) === 'off') continue;
+    replay(ringNodes[i], 'shatter');
+  }
+}
+
+// drive every hit-synced breakage from what just sounded on this step
+function sceneHit(index) {
+  const kick = !!toggles.kick[index];
+  const snare = !!toggles.snare[index];
+  const ghost = !!toggles.ghost[index];
+  const hat = !!(toggles.hatC[index] || toggles.hatO[index]);
+
+  // liquid-drop deformation — present even at critical 0, politely
+  if (kick) {
+    stretchEnv = Math.max(stretchEnv, 0.1 + 0.1 * critical);
+    lobeSepEnv = Math.max(lobeSepEnv, 1.3 + 2.4 * critical);
+  }
+  if (snare) {
+    stretchEnv = Math.max(stretchEnv, 0.07 + 0.09 * critical);
+    lobeSepEnv = Math.max(lobeSepEnv, 1 + 2 * critical);
+    joltScene(1.1 + 2 * critical);
+  } else if (ghost) {
+    joltScene(0.7 + 1.6 * critical);
+  }
+
+  // a real fission: probability and violence scale with criticality
+  if ((kick || snare) && Math.random() < critical * 0.5) nucleusSplit();
+
+  // the engine's retriggers are invisible to the UI, so echo them: pseudo-
+  // random after-pulses proportional to critical, rolled ~55ms apart
+  if ((snare || ghost) && critical > 0.15 && Math.random() < critical * 0.75 && pendingPulses.length < 8) {
+    const now = performance.now();
+    const n = 1 + (Math.random() < critical * 0.7 ? 1 : 0);
+    for (let k = 1; k <= n; k++) {
+      pendingPulses.push({
+        at: now + 55 * k,
+        mag: 0.8 + 1.5 * critical,
+        stretch: 0.05 + 0.06 * critical,
+        sep: 0.8 + 1.4 * critical,
+      });
+    }
+  }
+
+  // high criticality: the picture itself starts to break
+  if (critical > 0.5) {
+    if ((kick || snare || ghost || hat) && Math.random() < (critical - 0.45) * 1.3) fireGlitch();
+    if (Math.random() < critical - 0.4) shatterNodes();
+  }
+}
+
+// ---- ambient motion: breathing nucleus, wandering dust, geiger ticks,
+// and the hit-driven breakage envelopes (all in this one rAF loop) ----
 
 let lastFrame = 0;
 let tickIndex = 0;
+let stretchEnv = 0; // liquid-drop elongation of the nucleus
+let lobeSepEnv = 0; // px the two nucleus lobes are torn apart
+let joltEnv = 0; // px of whole-scene jolt
+let joltX = 1;
+let joltY = 0;
+let sceneJolted = false;
+const pendingPulses = []; // pseudo-retrigger echoes {at, mag, stretch, sep}
+
+function joltScene(mag) {
+  const a = Math.random() * Math.PI * 2;
+  joltX = Math.cos(a);
+  joltY = Math.sin(a) * 0.6;
+  joltEnv = Math.max(joltEnv, Math.min(3, mag));
+}
 
 function animate(t) {
   // clamp dt so returning from a hidden tab doesn't jump the scene
   const dt = Math.min(lastFrame ? (t - lastFrame) / 1000 : 0, 0.1);
   lastFrame = t;
 
-  // the nucleus breathes — harder and faster while the reaction runs
+  // pseudo-retrigger echoes land a moment after the real hit
+  for (let i = pendingPulses.length - 1; i >= 0; i--) {
+    if (pendingPulses[i].at <= t) {
+      const p = pendingPulses[i];
+      pendingPulses.splice(i, 1);
+      joltScene(p.mag);
+      stretchEnv = Math.max(stretchEnv, p.stretch);
+      lobeSepEnv = Math.max(lobeSepEnv, p.sep);
+    }
+  }
+
+  // hit envelopes: snap out on the hit, ease back home
+  stretchEnv *= Math.exp(-dt * 6.5);
+  lobeSepEnv *= Math.exp(-dt * 5);
+  joltEnv *= Math.exp(-dt * 16);
+
+  // the nucleus breathes — harder and faster while the reaction runs — and
+  // deforms like a liquid drop on hits: sphere -> ellipsoid -> necked in
+  // two lobes -> back together
   const amp = playing ? 0.085 : 0.045;
   const rate = playing ? 430 : 1500;
   const s = 1 + amp * Math.sin(t / rate) + critical * 0.05 * Math.sin(t / 210);
-  nucleusScaleEl.style.transform = `scale(${s.toFixed(4)})`;
+  const sx = s * (1 + stretchEnv);
+  const sy = s * (1 - stretchEnv * 0.55);
+  nucleusScaleEl.setAttribute('transform', `translate(${CX} ${CY}) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) translate(${-CX} ${-CY})`);
+  if (lobeSepEnv > 0.05) {
+    const sep = lobeSepEnv;
+    lobeAEl.setAttribute('transform', `translate(${(-sep).toFixed(2)} ${(-sep * 0.3).toFixed(2)})`);
+    lobeBEl.setAttribute('transform', `translate(${sep.toFixed(2)} ${(sep * 0.3).toFixed(2)})`);
+    nucNeckEl.setAttribute('opacity', Math.min(0.85, sep / 3).toFixed(2));
+    nucNeckEl.setAttribute('transform', `translate(${CX} ${CY}) scale(${(1 + sep / 4).toFixed(3)} 1) translate(${-CX} ${-CY})`);
+  } else if (nucNeckEl.getAttribute('opacity') !== '0') {
+    lobeAEl.removeAttribute('transform');
+    lobeBEl.removeAttribute('transform');
+    nucNeckEl.setAttribute('opacity', '0');
+  }
   sunHazeEl.style.transform = `scale(${(1 + 0.055 * Math.sin(t / 1700)).toFixed(4)})`;
+
+  // whole-scene jolt on snare/ghost hits (1-3px, amplified by criticality)
+  if (joltEnv > 0.06) {
+    sceneRoot.setAttribute('transform', `translate(${(joltX * joltEnv).toFixed(2)} ${(joltY * joltEnv).toFixed(2)})`);
+    sceneJolted = true;
+  } else if (sceneJolted) {
+    sceneRoot.removeAttribute('transform');
+    sceneJolted = false;
+  }
 
   // dust particles wander freely; criticality stirs them up
   const dotAmp = 1 + critical * 1.4;
