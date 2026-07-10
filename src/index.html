@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+  <title>minima fission</title>
+  <link rel="icon" href="icons/fission.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- film grain over the whole reactor hall (faintly green-tinted) -->
+  <svg class="grain-overlay" aria-hidden="true">
+    <filter id="page-grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.86  0 0 0 0 0.95  0 0 0 0 0.89  0 0 0 0.9 0" />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#page-grain)" />
+  </svg>
+
+  <header>
+    <h1>minima fission <span class="subtitle">chain-reaction breakbeats</span></h1>
+    <div class="hud">
+      <div class="vol">
+        <span class="vol-label">VOL</span>
+        <input type="range" id="master-vol" min="0" max="1" step="0.01" value="0.85" />
+      </div>
+      <div class="bpm">
+        <button id="bpm-down" class="bpm-btn">−</button>
+        <span id="bpm-value">160</span>
+        <button id="bpm-up" class="bpm-btn">+</button>
+        <span class="bpm-label">BPM</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="space-pane">
+      <svg id="space" viewBox="0 0 320 260" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="space-bars">
+        <div class="bar jump-bar" aria-label="レイヤーを開く">
+          <span class="bar-tag">EDIT</span>
+          <button class="jump-btn" data-jump="kick">KICK</button>
+          <button class="jump-btn" data-jump="snare">SNARE</button>
+          <button class="jump-btn" data-jump="hat">HATS</button>
+          <button class="jump-btn" data-jump="bass">BASS</button>
+          <button class="jump-btn" data-jump="fx">FX</button>
+        </div>
+        <div class="bar mute-bar" aria-label="タップでミュート切り替え">
+          <span class="bar-tag">MUTE</span>
+          <button class="mute-btn" data-mute="kick">KICK</button>
+          <button class="mute-btn" data-mute="snare">SNARE</button>
+          <button class="mute-btn" data-mute="hat">HATS</button>
+          <button class="mute-btn" data-mute="bass">BASS</button>
+        </div>
+        <div class="bar ptn-bar" aria-label="パターン切り替え">
+          <span class="bar-tag">PTN</span>
+          <button class="ptn-btn active" data-ptn="0">I</button>
+          <button class="ptn-btn" data-ptn="1">II</button>
+          <button class="ptn-btn" data-ptn="2">III</button>
+          <button class="ptn-btn" data-ptn="3">IV</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="editor-pane" id="editor">
+      <div class="panels">
+        <section class="track panel active" data-track="kick" id="panel-kick">
+          <div class="panel-top"><span class="panel-title">KICK</span><span class="panel-actions"><button class="mute-btn" data-mute="kick">MUTE</button><button class="gen-btn" data-gen="kick">GEN</button><button class="close-btn" aria-label="閉じる">×</button></span></div>
+          <div class="steps" id="steps-kick"></div>
+          <div class="params" id="params-kick">
+            <label>TUNE<input type="range" data-param="tune" min="30" max="70" step="1" value="48" /></label>
+            <label>DECAY<input type="range" data-param="decay" min="0.05" max="0.5" step="0.01" value="0.22" /></label>
+            <label>PUNCH<input type="range" data-param="punch" min="0" max="1" step="0.01" value="0.7" /></label>
+            <label>DRIVE<input type="range" data-param="drive" min="0" max="1" step="0.01" value="0.35" /></label>
+            <label>LEVEL<input type="range" data-param="level" min="0" max="1" step="0.01" value="0.9" /></label>
+          </div>
+        </section>
+
+        <section class="track panel" data-track="snare" id="panel-snare">
+          <div class="panel-top"><span class="panel-title">SNARE</span><span class="panel-actions"><button class="mute-btn" data-mute="snare">MUTE</button><button class="gen-btn" data-gen="snare">GEN</button><button class="close-btn" aria-label="閉じる">×</button></span></div>
+          <div class="row-label">main</div>
+          <div class="steps" id="steps-snare"></div>
+          <div class="row-label">ghost</div>
+          <div class="steps" id="steps-ghost"></div>
+          <div class="params" id="params-snare">
+            <label>TONE<input type="range" data-param="tone" min="0" max="1" step="0.01" value="0.6" /></label>
+            <label>SNAP<input type="range" data-param="snap" min="0" max="1" step="0.01" value="0.65" /></label>
+            <label>DECAY<input type="range" data-param="decay" min="0.05" max="0.4" step="0.01" value="0.16" /></label>
+            <label>GHOST<input type="range" data-param="ghost" min="0" max="1" step="0.01" value="0.35" /></label>
+            <label>LEVEL<input type="range" data-param="level" min="0" max="1" step="0.01" value="0.8" /></label>
+          </div>
+        </section>
+
+        <section class="track panel" data-track="hat" id="panel-hat">
+          <div class="panel-top"><span class="panel-title">HATS</span><span class="panel-actions"><button class="mute-btn" data-mute="hat">MUTE</button><button class="gen-btn" data-gen="hat">GEN</button><button class="close-btn" aria-label="閉じる">×</button></span></div>
+          <div class="row-label">closed</div>
+          <div class="steps" id="steps-hatC"></div>
+          <div class="row-label">open</div>
+          <div class="steps" id="steps-hatO"></div>
+          <div class="params" id="params-hat">
+            <label>TONE<input type="range" data-param="tone" min="0" max="1" step="0.01" value="0.6" /></label>
+            <label>DECAY C<input type="range" data-param="decayC" min="0.01" max="0.15" step="0.005" value="0.045" /></label>
+            <label>DECAY O<input type="range" data-param="decayO" min="0.05" max="0.6" step="0.01" value="0.28" /></label>
+            <label>LEVEL<input type="range" data-param="level" min="0" max="1" step="0.01" value="0.5" /></label>
+          </div>
+        </section>
+
+        <section class="track panel" data-track="bass" id="panel-bass">
+          <div class="panel-top"><span class="panel-title">BASS</span><span class="panel-actions"><button class="mute-btn" data-mute="bass">MUTE</button><button class="gen-btn" data-gen="bass">GEN</button><button class="close-btn" aria-label="閉じる">×</button></span></div>
+          <div class="row-label">ステップを上下にドラッグで音程</div>
+          <div class="steps bass-steps" id="steps-bass"></div>
+          <div class="params" id="params-bass">
+            <label>ROOT<input type="range" data-param="root" min="0" max="11" step="1" value="5" /></label>
+            <label>CUTOFF<input type="range" data-param="cutoff" min="100" max="2000" step="10" value="700" /></label>
+            <label>RESO<input type="range" data-param="reso" min="0" max="1" step="0.01" value="0.3" /></label>
+            <label>DETUNE<input type="range" data-param="detune" min="0" max="1" step="0.01" value="0.4" /></label>
+            <label>GLIDE<input type="range" data-param="glide" min="0" max="0.3" step="0.005" value="0.06" /></label>
+            <label>DECAY<input type="range" data-param="decay" min="0.1" max="1" step="0.01" value="0.5" /></label>
+            <label>LEVEL<input type="range" data-param="level" min="0" max="1" step="0.01" value="0.85" /></label>
+          </div>
+        </section>
+
+        <section class="track panel" data-track="fx" id="panel-fx">
+          <div class="panel-top"><span class="panel-title">FX</span><button class="close-btn" aria-label="閉じる">×</button></div>
+          <div class="params" id="params-fx">
+            <label>DELAY<input type="range" data-param="delay" min="0" max="1" step="0.01" value="0.25" /></label>
+            <label>FEEDBACK<input type="range" data-param="feedback" min="0" max="0.9" step="0.01" value="0.45" /></label>
+            <label>REVERB<input type="range" data-param="reverb" min="0" max="1" step="0.01" value="0.2" /></label>
+            <label>CRUSH<input type="range" data-param="crush" min="0" max="1" step="0.01" value="0.15" /></label>
+            <label>DUCK<input type="range" data-param="duck" min="0" max="1" step="0.01" value="0.35" /></label>
+            <label>SWING<input type="range" data-param="swing" min="0" max="0.3" step="0.01" value="0.06" /></label>
+          </div>
+          <div class="fx-extra">
+            <label class="critical-slider-label">CRITICAL<input type="range" id="critical-slider" min="0" max="1" step="0.01" value="0" /></label>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="renderer.js"></script>
+</body>
+</html>

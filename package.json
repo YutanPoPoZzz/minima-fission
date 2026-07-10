@@ -1,0 +1,33 @@
+{
+  "name": "minima-fission",
+  "version": "0.1.0",
+  "description": "Nuclear-fission breakbeats groovebox — the chain-reaction sibling of minima galaxy / rain / drift / city",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/render-voices.js && node test/render-effects.js",
+    "dist": "electron-builder --win portable"
+  },
+  "author": "yutan",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.yutan.minima-fission",
+    "productName": "minima fission",
+    "files": [
+      "src/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "build/icon.png"
+    }
+  }
+}

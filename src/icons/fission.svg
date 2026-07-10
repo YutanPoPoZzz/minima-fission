@@ -1,0 +1,24 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- jet-black circular chamber -->
+  <circle cx="32" cy="32" r="32" fill="#04070a" />
+  <!-- crossed electron orbits, white line-art -->
+  <g fill="none" stroke="#eef6f1" stroke-linecap="round">
+    <ellipse cx="32" cy="32" rx="24" ry="9.5" stroke-width="1.5" opacity="0.75" transform="rotate(-28 32 32)" />
+    <ellipse cx="32" cy="32" rx="24" ry="9.5" stroke-width="1.5" opacity="0.5" transform="rotate(62 32 32)" />
+  </g>
+  <!-- nucleus cluster: green core, hollow nucleons around it -->
+  <circle cx="31" cy="33" r="4.6" fill="#4dff88" />
+  <circle cx="25.6" cy="30" r="3.4" fill="none" stroke="#eef6f1" stroke-width="1.4" />
+  <circle cx="35.4" cy="28.4" r="3.1" fill="none" stroke="#ffe14d" stroke-width="1.4" />
+  <circle cx="35.2" cy="37.6" r="3.2" fill="none" stroke="#eef6f1" stroke-width="1.4" />
+  <circle cx="26.4" cy="37.2" r="2.9" fill="none" stroke="#4dff88" stroke-width="1.4" />
+  <!-- a fragment splitting away, trailing yellow neutron rays -->
+  <circle cx="48.5" cy="17.5" r="2.8" fill="none" stroke="#4dff88" stroke-width="1.4" />
+  <g stroke="#ffe14d" stroke-width="1.3" stroke-linecap="round">
+    <path d="M44.6 21.6 L41.2 25" />
+    <path d="M52 13.8 L55 10.8" />
+    <path d="M51.8 21.6 L55.4 23.6" />
+  </g>
+  <!-- an electron riding the lower orbit -->
+  <circle cx="11.5" cy="42" r="1.8" fill="#eef6f1" />
+</svg>

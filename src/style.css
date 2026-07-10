@@ -1,0 +1,908 @@
+/* minima fission — chain-reaction breakbeats, rendered in the minima series'
+   light vocabulary: near-black background, strong film grain, vignette,
+   EB Garamond serif, glowing white line-art / luminous orbs only — no fills,
+   no grey, no realistic illustration. The scene is an ATOM: a breathing
+   nucleus cluster (play), an electron orbit ring of 16 step nodes, a neutron
+   playhead, four isotope atoms (tracks) and a control rod (CRITICAL).
+   Accents: uranium-glass GREEN + warning YELLOW, used sparingly.
+   Single screen on phone and desktop. */
+
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('fonts/ebgaramond-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --bg: #000000;
+  --panel: rgba(6, 10, 8, 0.78);
+  /* monochrome base: white light on near-black (shared series look) */
+  --line: rgba(232, 244, 238, 0.22);
+  --line-strong: rgba(232, 244, 238, 0.46);
+  --text: #eef6f1;
+  --dim: rgba(230, 244, 238, 0.6);
+  --light: #eaf6ef;         /* white light core for the scene at rest */
+  --light-soft: #cfe2d8;    /* pale falloff */
+  /* Cherenkov / uranium-glass green — the fission spot accent */
+  --accent: #4dff88;
+  --accent-bright: #b8ffd2;
+  /* warning yellow — neutron rays, criticality heat */
+  --accent2: #ffe14d;
+  --accent2-bright: #fff3a6;
+  --cream: var(--light); /* name kept for series compatibility */
+  --ink: #02120a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 120% 90% at 50% 42%, #0e1410 0%, #070a08 40%, #000000 100%);
+  color: var(--text);
+  font-family: 'EB Garamond', 'Yu Mincho', 'Hiragino Mincho ProN', Georgia, serif;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  gap: 8px;
+}
+
+/* hard vignette: corners fall to black so the nucleus can blaze */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 110% 85% at 50% 42%, transparent 40%, rgba(0, 0, 0, 0.88) 100%);
+  pointer-events: none;
+  z-index: 40;
+}
+
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.17;
+  pointer-events: none;
+  z-index: 50;
+}
+
+/* reaction-chamber haze banks drifting very slowly behind the atom */
+.haze-a {
+  animation: haze-a 38s ease-in-out infinite alternate;
+}
+
+.haze-b {
+  animation: haze-b 54s ease-in-out infinite alternate;
+}
+
+@keyframes haze-a {
+  to {
+    transform: translate(24px, 12px);
+  }
+}
+
+@keyframes haze-b {
+  to {
+    transform: translate(-28px, -8px);
+  }
+}
+
+/* ---- header ---- */
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(232, 244, 238, 0.3);
+  padding-bottom: 9px;
+}
+
+h1 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0.42em;
+}
+
+.subtitle {
+  font-size: 9.5px;
+  letter-spacing: 0.3em;
+  color: var(--dim);
+}
+
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vol {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(232, 244, 238, 0.4);
+  border-radius: 999px;
+  padding: 6px 13px;
+}
+
+.vol-label {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.22em;
+}
+
+.vol input[type='range'] {
+  width: 72px;
+  accent-color: var(--accent);
+}
+
+.bpm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(232, 244, 238, 0.4);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+
+#bpm-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  min-width: 38px;
+  text-align: center;
+}
+
+.bpm-label {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.22em;
+}
+
+.bpm-btn {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 17px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.bpm-btn:hover {
+  color: var(--text);
+}
+
+/* ---- main: atom scene + editor ---- */
+
+main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.space-pane {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* edit-jump, mute and pattern bars floating at the bottom of the chamber.
+   z-index above the vignette/grain overlays so they stay crisp. */
+.space-bars {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  z-index: 60;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-tag {
+  font-size: 8px;
+  letter-spacing: 0.3em;
+  color: var(--dim);
+  opacity: 0.85;
+  width: 34px;
+  text-align: right;
+}
+
+.jump-btn,
+.mute-btn {
+  background: none;
+  border: 1px solid rgba(232, 244, 238, 0.4);
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.3em;
+  padding: 4px 13px 4px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.jump-btn:active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mute-btn.muting {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+  box-shadow: 0 0 14px rgba(77, 255, 136, 0.45);
+}
+
+.ptn-btn {
+  background: none;
+  border: 1px solid rgba(232, 244, 238, 0.4);
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  min-width: 40px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.ptn-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+  box-shadow: 0 0 14px rgba(77, 255, 136, 0.45);
+}
+
+/* while the editor sheet overlays the scene (narrow screens), the bottom
+   bars hide so their hit areas never sit on top of the panel */
+@media (max-width: 859px) {
+  body.editor-open .space-bars {
+    display: none;
+  }
+}
+
+#space {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---- scene bodies: isotope atoms (tracks) ---- */
+
+.planet {
+  cursor: pointer;
+}
+
+.planet-scale,
+.planet-body {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.planet-body.hit {
+  animation: planet-hit 160ms ease-out;
+}
+
+@keyframes planet-hit {
+  50% {
+    transform: scale(1.3);
+  }
+}
+
+/* the fx point drifts gently */
+.planet-body.bob {
+  animation: bob 6s ease-in-out infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* isotope electron shells precess slowly, each at its own pace */
+.iso-orbit {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: iso-spin 16s linear infinite;
+}
+
+.iso-orbit.rev {
+  animation-direction: reverse;
+  animation-duration: 22s;
+}
+
+@keyframes iso-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* light pillar through the nucleus breathes slowly */
+.beam {
+  animation: beam-breathe 8s ease-in-out infinite;
+}
+
+@keyframes beam-breathe {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.26;
+  }
+}
+
+/* stray neutron streaks crossing the chamber (galaxy's comets;
+   pathLength is normalized to 100) */
+.comet {
+  stroke-dasharray: 14 86;
+}
+
+.comet-a {
+  animation: comet 9s linear infinite;
+}
+
+.comet-b {
+  animation: comet 14s linear infinite;
+  animation-delay: 5s;
+}
+
+@keyframes comet {
+  from {
+    stroke-dashoffset: 114;
+  }
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+/* distant dust particles twinkle out of phase */
+.bg-star {
+  animation: twinkle 4s ease-in-out infinite;
+  opacity: 0.2;
+}
+
+@keyframes twinkle {
+  50% {
+    opacity: 0.65;
+  }
+}
+
+/* the nucleus breathes (inline transform from JS) and pulses on every kick */
+.sun-haze,
+.sun-burst,
+.sun-load,
+.nucleus-cluster,
+.nucleus-burn {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* while the audio engine loads, an arc of light circles the nucleus */
+.sun-load {
+  opacity: 0;
+}
+
+.sun.loading .sun-load {
+  opacity: 0.9;
+  animation: sun-spin 1.1s linear infinite;
+}
+
+.sun.loading .sun-icon {
+  opacity: 0.15;
+}
+
+@keyframes sun-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sun-burst.go {
+  animation: burst 360ms ease-out;
+}
+
+@keyframes burst {
+  from {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+.planet-label {
+  font-family: inherit;
+  font-size: 9.5px;
+  letter-spacing: 0.34em;
+  fill: var(--dim);
+}
+
+.sun {
+  cursor: pointer;
+}
+
+/* ---- electron orbit ring: decorative shells rotate very slowly ---- */
+
+.orbit-decor {
+  animation: orbit-precess 60s linear infinite;
+}
+
+.orbit-decor.rev {
+  animation-direction: reverse;
+  animation-duration: 84s;
+}
+
+@keyframes orbit-precess {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- neutron playhead: travels node to node with a short light trail ---- */
+
+.neutron {
+  transition: transform 90ms linear;
+}
+
+.neutron-core,
+.neutron-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ---- fission flash: a lit node splits under the neutron ---- */
+
+.fission {
+  pointer-events: none;
+}
+
+.fission .frag-a,
+.fission .frag-b,
+.fission .ray,
+.fission .shock {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.fission.go .shock {
+  animation: burst 340ms ease-out;
+}
+
+.fission.go .frag-a {
+  animation: frag-a 380ms ease-out;
+}
+
+.fission.go .frag-b {
+  animation: frag-b 380ms ease-out;
+}
+
+@keyframes frag-a {
+  from {
+    opacity: 0.95;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: -9px -5px;
+  }
+}
+
+@keyframes frag-b {
+  from {
+    opacity: 0.95;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 9px 5px;
+  }
+}
+
+/* yellow neutron rays thrown out of the split */
+.fission.go .ray {
+  animation: ray-fly 320ms ease-out;
+}
+
+@keyframes ray-fly {
+  from {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+/* geiger ticks: micro-flashes that multiply as criticality rises */
+.geiger {
+  opacity: 0;
+}
+
+.geiger.go {
+  animation: tick-flash 260ms ease-out;
+}
+
+@keyframes tick-flash {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---- CRITICAL control rod (was galaxy's black hole / CHAOS) ---- */
+
+.critical {
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.rod-throb {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rod-throb 3.2s ease-in-out infinite;
+}
+
+@keyframes rod-throb {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.critical-value {
+  font-family: inherit;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  fill: var(--cream);
+}
+
+/* ---- editor: bottom sheet on phones, side pane on desktop ---- */
+
+.editor-pane {
+  display: none;
+}
+
+.editor-pane.open {
+  display: block;
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  z-index: 5;
+}
+
+.panel {
+  display: none;
+  background: var(--panel);
+  border: 1px solid rgba(232, 244, 238, 0.3);
+  border-radius: 10px;
+  padding: 13px 15px;
+  backdrop-filter: blur(7px);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.6);
+}
+
+.panel.active {
+  display: block;
+}
+
+.panel-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(232, 244, 238, 0.18);
+  padding-bottom: 7px;
+}
+
+.panel-title {
+  font-size: 12.5px;
+  letter-spacing: 0.42em;
+  color: var(--text);
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gen-btn {
+  background: none;
+  border: 1px solid rgba(232, 244, 238, 0.4);
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.3em;
+  padding: 4px 13px 4px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.gen-btn:hover,
+.gen-btn:active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.close-btn {
+  background: none;
+  border: 1px solid var(--line-strong);
+  color: var(--dim);
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.row-label {
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin: 2px 0 5px;
+}
+
+/* ---- step grids ---- */
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 5px;
+  margin-bottom: 11px;
+}
+
+.step {
+  aspect-ratio: 1 / 1.25;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: transparent; /* hollowed out: outlines only */
+  cursor: pointer;
+}
+
+.step:nth-child(4n + 1) {
+  border-color: var(--line-strong);
+}
+
+.step.on {
+  background: radial-gradient(circle at 50% 45%, #d9ffe8 0%, #4dff88 48%, rgba(77, 255, 136, 0.12) 100%);
+  border-color: rgba(77, 255, 136, 0.7);
+  box-shadow: 0 0 14px rgba(77, 255, 136, 0.5);
+}
+
+.step.playhead {
+  outline: 1.5px solid var(--accent2);
+  outline-offset: 1px;
+}
+
+.bass-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.bass-step .note {
+  font-size: 9.5px;
+  color: var(--dim);
+  pointer-events: none;
+}
+
+.bass-step.on .note {
+  color: var(--ink);
+}
+
+/* ---- params ---- */
+
+.params {
+  display: flex;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+
+.params label,
+.fx-extra label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+}
+
+.params input[type='range'],
+.fx-extra input[type='range'] {
+  width: 104px;
+  accent-color: var(--accent);
+}
+
+.fx-extra {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(232, 244, 238, 0.18);
+}
+
+.fx-extra input[type='range'] {
+  accent-color: var(--accent2);
+}
+
+/* ---- desktop (app window): atom left, editor right ---- */
+
+@media (min-width: 860px) {
+  body {
+    padding: 18px 26px;
+  }
+
+  main {
+    flex-direction: row;
+    gap: 18px;
+  }
+
+  .space-pane {
+    flex: 1.15;
+  }
+
+  .editor-pane,
+  .editor-pane.open {
+    display: flex;
+    position: static;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .panel {
+    box-shadow: none;
+  }
+
+  .close-btn {
+    display: none;
+  }
+
+  .params input[type='range'],
+  .fx-extra input[type='range'] {
+    width: 120px;
+  }
+}
+
+/* ---- phones: compact header, steps wrap to two rows of 8 ---- */
+
+@media (max-width: 620px) {
+  body {
+    padding: 12px 12px;
+    gap: 6px;
+  }
+
+  h1 {
+    font-size: 14.5px;
+    letter-spacing: 0.18em;
+    gap: 6px;
+  }
+
+  .subtitle {
+    display: none;
+  }
+
+  .bpm {
+    padding: 2px 8px;
+  }
+
+  .bpm-btn {
+    width: 22px;
+  }
+
+  #bpm-value {
+    min-width: 32px;
+    font-size: 15px;
+  }
+
+  .steps {
+    grid-template-columns: repeat(8, 1fr);
+  }
+
+  .step:nth-child(4n + 1) {
+    border-color: var(--line);
+  }
+
+  .step:nth-child(8n + 1),
+  .step:nth-child(8n + 5) {
+    border-color: var(--line-strong);
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .params {
+    gap: 8px 12px;
+  }
+
+  .params input[type='range'] {
+    width: 112px;
+  }
+
+  .space-bars {
+    bottom: 12px;
+    gap: 8px;
+  }
+
+  .jump-btn,
+  .mute-btn {
+    font-size: 10px;
+    padding: 7px 10px 7px 12px;
+    letter-spacing: 0.2em;
+  }
+
+  .bar {
+    gap: 6px;
+  }
+
+  .bar-tag {
+    width: 28px;
+  }
+
+  .hud {
+    gap: 6px;
+  }
+
+  .vol {
+    padding: 4px 9px;
+    gap: 5px;
+  }
+
+  .vol-label {
+    display: none;
+  }
+
+  .vol input[type='range'] {
+    width: 52px;
+  }
+}
