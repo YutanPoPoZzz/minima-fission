@@ -3,7 +3,8 @@
    EB Garamond serif, glowing white line-art / luminous orbs only — no fills,
    no grey, no realistic illustration. The scene is an ATOM: a breathing
    nucleus cluster (play), an electron orbit ring of 16 step nodes, a neutron
-   playhead, four isotope atoms (tracks) and a control rod (CRITICAL).
+   playhead, four isotope atoms (tracks) and a tearing gauge (CRITICAL): a
+   small nucleus pulled apart into two fragment halves as you drag.
    Accents: uranium-glass GREEN + warning YELLOW, used sparingly.
    Single screen on phone and desktop. */
 
@@ -569,26 +570,129 @@ main {
   }
 }
 
-/* ---- CRITICAL control rod (was galaxy's black hole / CHAOS) ---- */
+/* ---- the nucleus really fissions: yellow flash + neutron sparks ---- */
+
+.nuc-flash {
+  opacity: 0;
+}
+
+.nuc-flash.go {
+  animation: tick-flash 240ms ease-out;
+}
+
+.nuc-sparks .nray {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.nuc-sparks.go .nray {
+  animation: ray-fly 380ms ease-out;
+}
+
+/* ---- breakbeat breakage (high CRITICAL) ---- */
+
+/* past 0.5 the electron orbit cracks and flickers with the strain */
+.orbit-ring.cracked {
+  stroke-dasharray: 11 3 4 2 6 3 9 2;
+  animation: ring-crack 0.62s steps(2, start) infinite;
+}
+
+@keyframes ring-crack {
+  0%,
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    opacity: 0.5;
+    stroke-dashoffset: 7;
+  }
+}
+
+/* a lit step node flickers apart for an instant */
+.shatter {
+  animation: node-shatter 190ms steps(2, start);
+}
+
+@keyframes node-shatter {
+  25% {
+    opacity: 0.25;
+    translate: 1.6px -1px;
+  }
+  60% {
+    opacity: 0.9;
+    translate: -1.4px 1.2px;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* glitch slices: clipped clones of the scene, torn sideways for a flash */
+.glitch-slice {
+  display: none;
+  pointer-events: none;
+}
+
+.glitch-slice.go {
+  display: inline;
+  animation: glitch-flash 130ms steps(2, start) forwards;
+}
+
+@keyframes glitch-flash {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---- CRITICAL tearing gauge (was galaxy's black hole / CHAOS): a small
+   nucleus cluster ripped into two halves, sparks in the gap ---- */
 
 .critical {
   cursor: ns-resize;
   touch-action: none;
 }
 
-.rod-throb {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: rod-throb 3.2s ease-in-out infinite;
+.crit-throb {
+  animation: crit-throb 3.2s ease-in-out infinite;
 }
 
-@keyframes rod-throb {
+@keyframes crit-throb {
   0%,
   100% {
     opacity: 0.85;
   }
   50% {
     opacity: 1;
+  }
+}
+
+/* neutron sparks flickering in the tear while critical > 0 */
+.crit-spark {
+  opacity: 0;
+}
+
+.critical.hot .crit-spark {
+  animation: crit-spark 0.44s steps(2, start) infinite;
+}
+
+.critical.hot .crit-spark.b {
+  animation-duration: 0.61s;
+  animation-delay: 0.13s;
+}
+
+@keyframes crit-spark {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.9;
   }
 }
 
