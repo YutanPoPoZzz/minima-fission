@@ -842,7 +842,6 @@ function replay(node, cls = 'go') {
 // out, then the fragments re-collect as the envelope decays
 function nucleusSplit() {
   burstEnv = Math.max(burstEnv, 4.5 + 6.5 * critical);
-  stretchEnv = Math.max(stretchEnv, 0.22);
   for (const o of nucleonOrbs) o.k = 0.6 + Math.random() * 1.1;
   nucSparksG.setAttribute('transform', `translate(${CX} ${CY}) rotate(${(Math.random() * 360) | 0})`);
   replay(nucSparksG);
@@ -875,13 +874,11 @@ function sceneHit(index) {
   const ghost = !!toggles.ghost[index];
   const hat = !!(toggles.hatC[index] || toggles.hatO[index]);
 
-  // liquid-drop deformation — present even at critical 0, politely
+  // a small outward puff on the beat — the only motion the nucleus makes
   if (kick) {
-    stretchEnv = Math.max(stretchEnv, 0.1 + 0.1 * critical);
     burstEnv = Math.max(burstEnv, 1.3 + 2.4 * critical);
   }
   if (snare) {
-    stretchEnv = Math.max(stretchEnv, 0.07 + 0.09 * critical);
     burstEnv = Math.max(burstEnv, 1 + 2 * critical);
     joltScene(1.1 + 2 * critical);
   } else if (ghost) {
@@ -900,7 +897,6 @@ function sceneHit(index) {
       pendingPulses.push({
         at: now + 55 * k,
         mag: 0.8 + 1.5 * critical,
-        stretch: 0.05 + 0.06 * critical,
         sep: 0.8 + 1.4 * critical,
       });
     }
@@ -913,18 +909,18 @@ function sceneHit(index) {
   }
 }
 
-// ---- ambient motion: breathing nucleus, wandering dust, geiger ticks,
-// and the hit-driven breakage envelopes (all in this one rAF loop) ----
+// ---- ambient motion: wandering dust, geiger ticks, and the hit-driven
+// breakage envelopes (all in this one rAF loop). The nucleus is static
+// apart from the fission bursts. ----
 
 let lastFrame = 0;
 let tickIndex = 0;
-let stretchEnv = 0; // liquid-drop elongation of the nucleus
 let burstEnv = 0; // px the nucleons are scattered outward from the centre
 let joltEnv = 0; // px of whole-scene jolt
 let joltX = 1;
 let joltY = 0;
 let sceneJolted = false;
-const pendingPulses = []; // pseudo-retrigger echoes {at, mag, stretch, sep}
+const pendingPulses = []; // pseudo-retrigger echoes {at, mag, sep}
 
 function joltScene(mag) {
   const a = Math.random() * Math.PI * 2;
@@ -944,25 +940,18 @@ function animate(t) {
       const p = pendingPulses[i];
       pendingPulses.splice(i, 1);
       joltScene(p.mag);
-      stretchEnv = Math.max(stretchEnv, p.stretch);
       burstEnv = Math.max(burstEnv, p.sep);
     }
   }
 
   // hit envelopes: snap out on the hit, ease back home
-  stretchEnv *= Math.exp(-dt * 6.5);
   burstEnv *= Math.exp(-dt * 5);
   joltEnv *= Math.exp(-dt * 16);
 
-  // the nucleus breathes — harder and faster while the reaction runs — and
-  // deforms like a liquid drop on hits: sphere -> ellipsoid -> necked in
-  // two lobes -> back together
-  const amp = playing ? 0.085 : 0.045;
-  const rate = playing ? 430 : 1500;
-  const s = 1 + amp * Math.sin(t / rate) + critical * 0.05 * Math.sin(t / 210);
-  const sx = s * (1 + stretchEnv);
-  const sy = s * (1 - stretchEnv * 0.55);
-  nucleusScaleEl.setAttribute('transform', `translate(${CX} ${CY}) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) translate(${-CX} ${-CY})`);
+  // the nucleus itself stays put — no breathing, no stretching (the user
+  // found the constant centre motion noisy, and per-frame transforms on
+  // filtered elements were the main render cost). Only the fission burst
+  // below moves the nucleons, then they re-collect.
   if (burstEnv > 0.05) {
     const sep = burstEnv;
     for (const o of nucleonOrbs) {
@@ -974,7 +963,6 @@ function animate(t) {
     for (const o of nucleonOrbs) o.el.removeAttribute('transform');
     nucNeckEl.setAttribute('opacity', '0');
   }
-  sunHazeEl.style.transform = `scale(${(1 + 0.055 * Math.sin(t / 1700)).toFixed(4)})`;
 
   // whole-scene jolt on snare/ghost hits (1-3px, amplified by criticality)
   if (joltEnv > 0.06) {
