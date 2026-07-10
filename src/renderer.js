@@ -149,9 +149,8 @@ let cometB = null;
 const geigerTicks = [];
 let orbitRingEl = null; // cracks and flickers at high criticality
 let sceneRoot = null; // everything but defs; jolted as one, cloned by glitch
-let lobeAEl = null; // left fragment group of the nucleus cluster
-let lobeBEl = null; // right fragment group
-let nucNeckEl = null; // yellow necking threads between the separating lobes
+let nucleonOrbs = []; // {el, ux, uy, k} — each orb bursts outward on its own radial
+let nucNeckEl = null; // yellow tearing threads inside the bursting cluster
 let nucSparksG = null; // neutron sparks thrown when the drop really fissions
 let nucFlashEl = null; // the fission flash
 const glitchSlices = []; // {use, rect} — clipped scene clones for glitch tears
@@ -454,12 +453,12 @@ function buildScene() {
   sun.appendChild(burstEl);
 
   // the nucleon cluster: ~7 hollow orbs of light packed around the centre,
-  // green and yellow mixed in among the white. Split into two LOBES so the
-  // liquid-drop deformation can pull it apart: hits stretch the drop into
-  // two lobes (sphere -> ellipsoid -> necking -> back), and at high
-  // criticality the lobes genuinely fly apart, then re-collect. Only this
-  // inner drawing group animates — the hit-area/play-control circles below
-  // stay perfectly still so the tap target never moves.
+  // green and yellow mixed in among the white. Hits stretch the drop
+  // (sphere -> ellipsoid -> back) and each orb bursts OUTWARD along its own
+  // radial from the centre — a scatter, not two groups sliding apart — then
+  // re-collects as the envelope decays. Only this inner drawing group
+  // animates — the hit-area/play-control circles below stay perfectly still
+  // so the tap target never moves.
   nucleusScaleEl = el('g', { class: 'nucleus-cluster' });
   // necking: yellow threads of light stretched between the separating lobes
   nucNeckEl = el('g', { opacity: 0 });
@@ -467,24 +466,21 @@ function buildScene() {
     nucNeckEl.appendChild(el('line', { x1: CX + x1, y1: CY + y1, x2: CX + x2, y2: CY + y2, stroke: 'var(--accent2)', 'stroke-width': 0.7, 'stroke-linecap': 'round', filter: 'url(#glow)' }));
   }
   nucleusScaleEl.appendChild(nucNeckEl);
-  const LOBE_A = [ // left fragment
+  const NUCLEONS = [
     [0, -10.5, 4.2, '#ffffff'],
     [-9, 7, 4.2, '#ffffff'],
     [-11, -3.5, 3.6, 'var(--accent)'],
     [-3.5, -4, 2.6, '#ffffff'],
-  ];
-  const LOBE_B = [ // right fragment
     [9.5, -4.5, 4.6, 'var(--accent)'],
     [10, 5.5, 3.8, '#ffffff'],
     [1.5, 11, 4.4, 'var(--accent2)'],
   ];
-  lobeAEl = el('g');
-  lobeBEl = el('g');
-  for (const [lobe, orbs] of [[lobeAEl, LOBE_A], [lobeBEl, LOBE_B]]) {
-    for (const [dx, dy, r, stroke] of orbs) {
-      lobe.appendChild(el('circle', { cx: CX + dx, cy: CY + dy, r, fill: 'none', stroke, 'stroke-width': 1.1, opacity: 0.85, filter: 'url(#glow)' }));
-    }
-    nucleusScaleEl.appendChild(lobe);
+  nucleonOrbs = [];
+  for (const [dx, dy, r, stroke] of NUCLEONS) {
+    const c = el('circle', { cx: CX + dx, cy: CY + dy, r, fill: 'none', stroke, 'stroke-width': 1.1, opacity: 0.85, filter: 'url(#glow)' });
+    const m = Math.hypot(dx, dy) || 1;
+    nucleonOrbs.push({ el: c, ux: dx / m, uy: dy / m, k: 1 });
+    nucleusScaleEl.appendChild(c);
   }
   sun.appendChild(nucleusScaleEl);
 
@@ -841,11 +837,13 @@ function replay(node, cls = 'go') {
   node.classList.add(cls);
 }
 
-// the drop really fissions: the lobes fly apart, neutron sparks and a yellow
-// flash burst out, then the fragments re-collect as the envelope decays
+// the drop really fissions: every nucleon bursts outward on its own radial
+// (each with a fresh random kick), neutron sparks and a yellow flash burst
+// out, then the fragments re-collect as the envelope decays
 function nucleusSplit() {
-  lobeSepEnv = Math.max(lobeSepEnv, 4.5 + 6.5 * critical);
+  burstEnv = Math.max(burstEnv, 4.5 + 6.5 * critical);
   stretchEnv = Math.max(stretchEnv, 0.22);
+  for (const o of nucleonOrbs) o.k = 0.6 + Math.random() * 1.1;
   nucSparksG.setAttribute('transform', `translate(${CX} ${CY}) rotate(${(Math.random() * 360) | 0})`);
   replay(nucSparksG);
   replay(nucFlashEl);
@@ -880,11 +878,11 @@ function sceneHit(index) {
   // liquid-drop deformation — present even at critical 0, politely
   if (kick) {
     stretchEnv = Math.max(stretchEnv, 0.1 + 0.1 * critical);
-    lobeSepEnv = Math.max(lobeSepEnv, 1.3 + 2.4 * critical);
+    burstEnv = Math.max(burstEnv, 1.3 + 2.4 * critical);
   }
   if (snare) {
     stretchEnv = Math.max(stretchEnv, 0.07 + 0.09 * critical);
-    lobeSepEnv = Math.max(lobeSepEnv, 1 + 2 * critical);
+    burstEnv = Math.max(burstEnv, 1 + 2 * critical);
     joltScene(1.1 + 2 * critical);
   } else if (ghost) {
     joltScene(0.7 + 1.6 * critical);
@@ -921,7 +919,7 @@ function sceneHit(index) {
 let lastFrame = 0;
 let tickIndex = 0;
 let stretchEnv = 0; // liquid-drop elongation of the nucleus
-let lobeSepEnv = 0; // px the two nucleus lobes are torn apart
+let burstEnv = 0; // px the nucleons are scattered outward from the centre
 let joltEnv = 0; // px of whole-scene jolt
 let joltX = 1;
 let joltY = 0;
@@ -947,13 +945,13 @@ function animate(t) {
       pendingPulses.splice(i, 1);
       joltScene(p.mag);
       stretchEnv = Math.max(stretchEnv, p.stretch);
-      lobeSepEnv = Math.max(lobeSepEnv, p.sep);
+      burstEnv = Math.max(burstEnv, p.sep);
     }
   }
 
   // hit envelopes: snap out on the hit, ease back home
   stretchEnv *= Math.exp(-dt * 6.5);
-  lobeSepEnv *= Math.exp(-dt * 5);
+  burstEnv *= Math.exp(-dt * 5);
   joltEnv *= Math.exp(-dt * 16);
 
   // the nucleus breathes — harder and faster while the reaction runs — and
@@ -965,15 +963,15 @@ function animate(t) {
   const sx = s * (1 + stretchEnv);
   const sy = s * (1 - stretchEnv * 0.55);
   nucleusScaleEl.setAttribute('transform', `translate(${CX} ${CY}) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) translate(${-CX} ${-CY})`);
-  if (lobeSepEnv > 0.05) {
-    const sep = lobeSepEnv;
-    lobeAEl.setAttribute('transform', `translate(${(-sep).toFixed(2)} ${(-sep * 0.3).toFixed(2)})`);
-    lobeBEl.setAttribute('transform', `translate(${sep.toFixed(2)} ${(sep * 0.3).toFixed(2)})`);
+  if (burstEnv > 0.05) {
+    const sep = burstEnv;
+    for (const o of nucleonOrbs) {
+      o.el.setAttribute('transform', `translate(${(o.ux * sep * o.k).toFixed(2)} ${(o.uy * sep * o.k).toFixed(2)})`);
+    }
     nucNeckEl.setAttribute('opacity', Math.min(0.85, sep / 3).toFixed(2));
-    nucNeckEl.setAttribute('transform', `translate(${CX} ${CY}) scale(${(1 + sep / 4).toFixed(3)} 1) translate(${-CX} ${-CY})`);
+    nucNeckEl.setAttribute('transform', `translate(${CX} ${CY}) scale(${(1 + sep / 4).toFixed(3)}) translate(${-CX} ${-CY})`);
   } else if (nucNeckEl.getAttribute('opacity') !== '0') {
-    lobeAEl.removeAttribute('transform');
-    lobeBEl.removeAttribute('transform');
+    for (const o of nucleonOrbs) o.el.removeAttribute('transform');
     nucNeckEl.setAttribute('opacity', '0');
   }
   sunHazeEl.style.transform = `scale(${(1 + 0.055 * Math.sin(t / 1700)).toFixed(4)})`;
